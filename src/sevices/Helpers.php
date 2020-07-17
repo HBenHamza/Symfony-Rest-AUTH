@@ -24,6 +24,7 @@ class Helpers{
 		$response = new \Symfony\Component\HttpFoundation\Response();
 		$response->setContent($json);
 		$response->headers->set('Content-Type','application/json');
+		$response->headers->set('Access-Control-Allow-Origin', '*');
 
 		return $response;
 
