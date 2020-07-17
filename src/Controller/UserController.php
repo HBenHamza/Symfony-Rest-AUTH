@@ -18,8 +18,12 @@ class UserController extends Controller
      * @Route("/login", name="user_sign_in")
      */
     public function loginAction(Request $request){
-
         $helpers = $this->get(Helpers::class);
+        
+        return $helpers->json(array(
+            'id' => 4
+        ));
+        /*$helpers = $this->get(Helpers::class);
         
         if ($json = $request->getContent()) {
             $parametersAsArray = json_decode($json, true);
@@ -59,7 +63,7 @@ class UserController extends Controller
                 'data'=>'Send json via post.'
             );
     
-        }
+        }*/
 
         return $helpers->json($data);
     }
