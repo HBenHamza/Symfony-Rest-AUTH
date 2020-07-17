@@ -70,11 +70,6 @@ class UserController extends Controller
     public function newAction(Request $request){
         $helpers = $this->get(Helpers::class);
 
-        /*$json = $request->get("json", null);
-        $params = json_decode($json);*/
-
-        
-
         if ($json = $request->getContent()) {
             $parametersAsArray = json_decode($json, true);
             
@@ -96,7 +91,7 @@ class UserController extends Controller
                 $owner->setCreatedAt($createdAt);
                 $owner->setEmail($email);
                 $owner->setFirstName($first_name);
-                $owner->setlastName($last_name);
+                $owner->setLastName($last_name);
 
                 $pwd = hash('sha256',$password);
                 $owner->setPassword($pwd);

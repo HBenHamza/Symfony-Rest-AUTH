@@ -81,7 +81,7 @@ class Kindergarten
 
     /**
      * @ORM\ManyToOne(targetEntity="Owner", inversedBy="kindergartens")
-     * @ORM\JoinColumn(name="owner_id", referencedColumnName="id")
+     * @ORM\JoinColumn(name="owner_id", referencedColumnName="id",onDelete="CASCADE")
      */
     private $owner;
 

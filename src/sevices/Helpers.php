@@ -15,7 +15,11 @@ class Helpers{
 		$encoders = array("json" => new \Symfony\Component\Serializer\Encoder\JsonEncoder());
 
 		$serializer = new \Symfony\Component\Serializer\Serializer($normalizers, $encoders);
-		$json = $serializer->serialize($data, 'json');
+		$json = $serializer->serialize($data, 'json', [
+			'circular_reference_handler' => function ($object) {
+				return $object->getId();
+			}
+		]);
 
 		$response = new \Symfony\Component\HttpFoundation\Response();
 		$response->setContent($json);

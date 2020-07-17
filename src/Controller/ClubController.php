@@ -11,10 +11,68 @@ use App\Services\JwtAuth;
 
 use App\Entity\Club;
 use App\Entity\Owner;
-use App\Entity\KinderGarten;
+use App\Entity\Kindergarten;
 
 
 class ClubController extends Controller{
+
+	/**
+     * @Route("/club/getAll", name="clubs")
+     */
+	public function getAllAction(Request $request){
+
+		$helpers = $this->get(Helpers::class);
+
+		$em = $this->getDoctrine()->getManager();
+
+		$clubs = $em->getRepository(Club::class)->findAll();
+
+		$data = array(
+			"status" 	=> "success",
+			"code" 		=> 200,
+			"clubs" 		=> $clubs
+		);
+
+	return $helpers->json($data);
+}
+
+ /**
+ * @Route("/club/getAllBykindergarten", name="getAllBykindergarten")
+ */
+public function getAllBykindergartenAction(Request $request){
+	
+	$helpers = $this->get(Helpers::class);
+	$jwt_auth = $this->get(JwtAuth::class);
+
+	$em = $this->getDoctrine()->getManager();
+	
+	$token = $request->get("authorization",null);
+	$authCheck = $jwt_auth->checkToken($token);
+	
+	if($authCheck){
+		$identity = $jwt_auth->checkToken($token, true);
+		$id_kindergarten = $request->query->get('id_kindergarten');
+		
+		$clubs = $em->getRepository(Club::class)->findBy(array(
+			'kindergarten' => $id_kindergarten
+		));
+
+		$data = array(
+			"status" 	=> "success",
+			"code" 		=> 200,
+			"clubs" 		=> $clubs
+		);
+		
+	}else{
+		$data = array(
+			"status" 	=> "error",
+			"code" 		=> 400,
+			"msg" 		=> "Authorization not valid !!"
+		);
+	}
+
+	return $helpers->json($data);
+}
 
  	/**
      * @Route("/club/new", name="new_club")
@@ -29,34 +87,26 @@ class ClubController extends Controller{
 		if($authCheck){
 			$identity = $jwt_auth->checkToken($token, true);
 			if ($json = $request->getContent()) {
-            	$parametersAsArray = json_decode($json, true);
+				$parametersAsArray = json_decode($json, true);
+				$json = $parametersAsArray;
         	}	
-			$json = $parametersAsArray;
 
 			if($json != null){
-
 				$createdAt = new \Datetime('now');
 				$updatedAt = new \Datetime('now');
 
-				$user_id 	= ($identity->id !=null) ? $identity->id : null;
-				$kinder_garten_id = (isset($params->kinder_garten_id)) ? $params->kinder_garten_id : null;
+				$kinder_garten_id = (isset($json['kinder_garten_id'])) ? $json['kinder_garten_id'] : null;
 				$title		= (isset($json['title'])) ? $json['title'] : null;
 				$description= (isset($json['description'])) ? $json['description'] : null;
 
 
-				if($user_id != null && $title !=null){
+				if($title !=null && $description != null){
 
 					$em = $this->getDoctrine()->getManager();
-					$user = $em->getRepository(Owner::class)->findOneBy(array(
-						'id' => $user_id
-					));
 
-					$kinder_garten =  $em->getRepository(KinderGarten::class)->findOneBy(array(
-						'id' => $kinder_garten_id
-					));
+					$kinder_garten =  $em->getRepository(Kindergarten::class)->find($kinder_garten_id);
 
-					if($id==null){
-						$club = new Club();
+					$club = new Club();
 						$club->setKindergarten($kinder_garten);
 						$club->setTitle($title);
 						$club->setDescription($description);
@@ -71,7 +121,7 @@ class ClubController extends Controller{
 							"code" 		=> 200,
 							"data" 		=> $club
 						);
-					}
+				
 
 					
 
@@ -185,11 +235,9 @@ class ClubController extends Controller{
 		
 			$id = $request->query->get("id_club");
 			if($id != null){
-
+				
 				$em = $this->getDoctrine()->getManager();
-				$club = $em->getRepository(Club::class)->findOneBy(array(
-					'id' => $id
-				));
+				$club = $em->getRepository(Club::class)->find($id);
 
 				$em->remove($club);
 				$em->flush();
@@ -197,7 +245,7 @@ class ClubController extends Controller{
 				$data = array(
 						"status" 	=> "success",
 						"code" 		=> 200,
-						"msg" 		=> "Club deleted"
+						"msg" 		=> "Club successfuly deleted"
 					);
 
 

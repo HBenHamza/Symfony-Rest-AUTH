@@ -39,7 +39,7 @@ class Club
 
     /**
      * @ORM\ManyToOne(targetEntity="Kindergarten", inversedBy="clubs")
-     * @ORM\JoinColumn(name="kindergarten_id", referencedColumnName="id")
+     * @ORM\JoinColumn(name="kindergarten_id", referencedColumnName="id",onDelete="CASCADE")
      */
     private $kindergarten;
 
