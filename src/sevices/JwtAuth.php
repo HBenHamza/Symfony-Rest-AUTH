@@ -49,7 +49,7 @@ class JwtAuth{
 				);
 			}else{
 				$data = array(
-					'token' => $jwt,
+					'token' => $decoded,
 					'id' => $user->getId()
 				);			
 				}
