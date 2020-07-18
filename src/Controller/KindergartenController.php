@@ -8,6 +8,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Validator\Constraints as Assert;
 use App\Services\Helpers;
 use App\Services\JwtAuth;
+use App\Services\FileUploader;
+use Symfony\Component\String\Slugger\SluggerInterface;
+
 
 use App\Entity\Club;
 use App\Entity\Owner;
@@ -86,41 +89,81 @@ class KindergartenController extends Controller{
 		
 		if($authCheck){
 			$identity = $jwt_auth->checkToken($token, true);
-			if ($json = $request->getContent()) {
-				$parametersAsArray = json_decode($json, true);
-				$json = $parametersAsArray;
-        	}	
+		
 
-			if($json != null){
 
 				$createdAt = new \Datetime('now');
 
 				$owner_id 	= ($identity->id !=null) ? $identity->id : null;
-				$name		= (isset($json['name'])) ? $json['name'] : null;
-				$doucmentEvidenceTva= (isset($json['documentEvidenceTva'])) ? $json['documentEvidenceTva'] : null;
-				$ratingNote= (isset($json['ratingNote'])) ? $json['ratingNote'] : null;
-				$description= (isset($json['description'])) ? $json['description'] : null;
-				$avalability= (isset($json['avalability'])) ? $json['avalability'] : null;
-				$address= (isset($json['address'])) ? $json['address'] : null;
-				$tags= (isset($json['tags'])) ? $json['tags'] : null;
-				$capacity= (isset($json['capacity'])) ? $json['capacity'] : null;
-				$nb_children_registered= (isset($json['nb_children_registered'])) ? $json['nb_children_registered'] : null;
-				$picture= (isset($json['ratingNote'])) ? $json['ratingNote'] : null;
+				$name		= !empty($request->request->get('name')) ? $request->request->get('name') : null;
+				$ratingNote= !empty($request->request->get('ratingNote')) ? $request->request->get('ratingNote') : null;
+				$description= !empty($request->request->get('description')) ?$request->request->get('description') : null;
+				$avalability= !empty($request->request->get('avalability')) ?$request->request->get('avalability') : null;
+				$address= !empty($request->request->get('address')) ? $request->request->get('address') : null;
+				$tags= !empty($request->request->get('tags')) ? $request->request->get('tags') : null;
+				$capacity= !empty($request->request->get('capacity')) ?$request->request->get('capacity') : null;
+				$nb_children_registered= !empty($request->request->get('nb_children_registered')) ?$request->request->get('nb_children_registered') : null;
 				
+				$kindergarten = new Kindergarten();
+
+				$doucmentEvidenceTva = $request->files->get('doucmentEvidenceTva');
+				$picture = $request->files->get('picture');
 
 
-				if($name !=null && $doucmentEvidenceTva !=null &&
-				$ratingNote !=null && $description !=null && $avalability !=null && $address !=null && 
-				$tags !=null && $capacity !=null && $nb_children_registered !="" && $picture !=null){
+				// this condition is needed because the 'brochure' field is not required
+				// so the PDF file must be processed only when a file is uploaded
+				if ($doucmentEvidenceTva) {
+					$originalFilename = pathinfo($doucmentEvidenceTva->getClientOriginalName(), PATHINFO_FILENAME);
+						// this is needed to safely include the file name as part of the URL
+						$safeFilename = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename);
+						$newFilename = $safeFilename.'-'.uniqid().'.'.$doucmentEvidenceTva->guessExtension();
+
+
+					// Move the file to the directory where brochures are stored
+					try {
+						$doucmentEvidenceTva->move(
+							$this->getParameter('upload_dir'),
+							$newFilename
+						);
+					} catch (FileException $e) {
+						// ... handle exception if something happens during file upload
+					}
+						$kindergarten->SetDoucmentEvidenceTva($newFilename);
+					}else{
+						$kindergarten->SetDoucmentEvidenceTva("...");
+					}
+
+					if ($picture) {
+						$originalFilename = pathinfo($picture->getClientOriginalName(), PATHINFO_FILENAME);
+							// this is needed to safely include the file name as part of the URL
+							$safeFilename = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename);
+							$newFilename = $safeFilename.'-'.uniqid().'.'.$picture->guessExtension();
+	
+	
+						// Move the file to the directory where brochures are stored
+						try {
+							$picture->move(
+								$this->getParameter('upload_dir'),
+								$newFilename
+							);
+						} catch (FileException $e) {
+							// ... handle exception if something happens during file upload
+						}
+							$kindergarten->SetPicture($newFilename);
+						}else{
+							$kindergarten->SetPicture("...");
+						}
 					
-					$em = $this->getDoctrine()->getManager();
-					$owner = $em->getRepository(Owner::class)->findOneBy(array(
-						'id' => $owner_id
-					));
+						
+					if($name && $ratingNote && $description && $avalability && $address && 
+					$tags && $capacity  && $nb_children_registered){
+						
+						$em = $this->getDoctrine()->getManager();
+						$owner = $em->getRepository(Owner::class)->findOneBy(array(
+							'id' => $owner_id
+						));
 
-					$kindergarten = new Kindergarten();
 					$kindergarten->SetName($name);
-					$kindergarten->SetDoucmentEvidenceTva($doucmentEvidenceTva);
 					$kindergarten->SetRatingNote((int)$ratingNote);
 					$kindergarten->SetDescription($description);
 					$kindergarten->SetAvalability((int)$avalability);
@@ -143,21 +186,11 @@ class KindergartenController extends Controller{
 					);
 				}else{
 					$data = array(
-						"status" 	=> "error",
-						"code" 		=> 400,
-						"msg" 		=> "Kindergarten not created, validation failed"
-					);
-				}
-
-			}else{
-				$data = array(
-					"status" 	=> "error",
-					"code" 		=> 400,
-					"msg" 		=> "Kindergarten not created, params failed"
+						"status" 	=> "success",
+						"code" 		=> 200,
+						"msg" 		=> "Kindergarten not created validation error "
 				);
-			}
-
-			
+				}	
 		}else{
 			$data = array(
 				"status" 	=> "error",
@@ -181,91 +214,110 @@ class KindergartenController extends Controller{
 		
 		if($authCheck){
 			$identity = $jwt_auth->checkToken($token, true);
-			if ($json = $request->getContent()) {
-				$parametersAsArray = json_decode($json, true);
-				$json = $parametersAsArray;
-        	}	
+		
 
-			if($json != null && isset($json['id_kindergarten'])){
+
+				$createdAt = new \Datetime('now');
+
+				$owner_id 	= ($identity->id !=null) ? $identity->id : null;
+				$name		= !empty($request->request->get('name')) ? $request->request->get('name') : $kindergarten->getName();
+				$ratingNote= !empty($request->request->get('ratingNote')) ? $request->request->get('ratingNote') : $kindergarten->getRatingNote();
+				$description= !empty($request->request->get('description')) ?$request->request->get('description') :  $kindergarten->getDescription();
+				$avalability= !empty($request->request->get('avalability')) ?$request->request->get('avalability') : $kindergarten->getAvalability();
+				$address= !empty($request->request->get('address')) ? $request->request->get('address') : $kindergarten->getAddress();
+				$tags= !empty($request->request->get('tags')) ? $request->request->get('tags') : $kindergarten->getTags();
+				$capacity= !empty($request->request->get('capacity')) ?$request->request->get('capacity') : $kindergarten->getCapacity();
+				$nb_children_registered= !empty($request->request->get('nb_children_registered')) ?$request->request->get('nb_children_registered') : $kindergarten->getNBChildrenRegistered();
 				
-				$id = $json['id_kindergarten'];
+                $em = $this->getDoctrine()->getManager();
 
-				$em = $this->getDoctrine()->getManager();
+                $kindergarten = $em->getRepository(Kindergarten::class)->find($request->request->get('id_kindergarten'));
 
-                $kindergarten = $em->getRepository(Kindergarten::class)->find($id);
+				$doucmentEvidenceTva = $request->files->get('doucmentEvidenceTva');
+				$picture = $request->files->get('picture');
 
 
-				if($kindergarten){
-						$createdAt = new \Datetime('now');
+				// this condition is needed because the 'brochure' field is not required
+				// so the PDF file must be processed only when a file is uploaded
+				if ($doucmentEvidenceTva) {
+					$originalFilename = pathinfo($doucmentEvidenceTva->getClientOriginalName(), PATHINFO_FILENAME);
+						// this is needed to safely include the file name as part of the URL
+						$safeFilename = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename);
+						$newFilename = $safeFilename.'-'.uniqid().'.'.$doucmentEvidenceTva->guessExtension();
 
-					$owner_id 	= ($identity->id !=null) ? $identity->id : null;
-					$name		= (isset($json['name'])) ? $json['name'] : $kindergarten->getName();
-					$doucmentEvidenceTva= (isset($json['documentEvidenceTva'])) ? $json['documentEvidenceTva'] : $kindergarten->getDoucmentEvidenceTva();
-					$ratingNote= (isset($json['ratingNote'])) ? $json['ratingNote'] : $kindergarten->getRatingNote();
-					$description= (isset($json['description'])) ? $json['description'] : $kindergarten->getDescription();
-					$avalability= (isset($json['avalability'])) ? $json['avalability'] : $kindergarten->getAvalability();
-					$address= (isset($json['address'])) ? $json['address'] : $kindergarten->getAddress();
-					$tags= (isset($json['tags'])) ? $json['tags'] : $kindergarten->getTags();
-					$capacity= (isset($json['capacity'])) ? $json['capacity'] : $kindergarten->getCapacity();
-					$nb_children_registered= (isset($json['nb_children_registered'])) ? $json['nb_children_registered'] : $kindergarten->getNBChildrenRegistered();
-					$picture= (isset($json['picture'])) ? $json['picture'] : $kindergarten->getPicture();
 
-					if($name !=null && $doucmentEvidenceTva !=null &&
-					$ratingNote !=null && $description !=null && $avalability !=null && $address !=null && 
-					$tags !=null && $capacity !=null && $nb_children_registered !="" && $picture !=null){
+					// Move the file to the directory where brochures are stored
+					try {
+						$doucmentEvidenceTva->move(
+							$this->getParameter('upload_dir'),
+							$newFilename
+						);
+					} catch (FileException $e) {
+						// ... handle exception if something happens during file upload
+					}
+						$kindergarten->SetDoucmentEvidenceTva($newFilename);
+					}else{
+						$kindergarten->SetDoucmentEvidenceTva($kindergarten->getDoucmentEvidenceTva());
+					}
+
+					if ($picture) {
+						$originalFilename = pathinfo($picture->getClientOriginalName(), PATHINFO_FILENAME);
+							// this is needed to safely include the file name as part of the URL
+							$safeFilename = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename);
+							$newFilename = $safeFilename.'-'.uniqid().'.'.$picture->guessExtension();
+	
+	
+						// Move the file to the directory where brochures are stored
+						try {
+							$picture->move(
+								$this->getParameter('upload_dir'),
+								$newFilename
+							);
+						} catch (FileException $e) {
+							// ... handle exception if something happens during file upload
+						}
+							$kindergarten->SetPicture($newFilename);
+						}else{
+							$kindergarten->SetPicture($kindergarten->getPicture());
+						}
+					
+						
+					if($name && $ratingNote && $description && $avalability && $address && 
+					$tags && $capacity  && $nb_children_registered){
 						
 						$em = $this->getDoctrine()->getManager();
 						$owner = $em->getRepository(Owner::class)->findOneBy(array(
 							'id' => $owner_id
 						));
 
-						$kindergarten->SetName($name);
-						$kindergarten->SetDoucmentEvidenceTva($doucmentEvidenceTva);
-						$kindergarten->SetRatingNote((int)$ratingNote);
-						$kindergarten->SetDescription($description);
-						$kindergarten->SetAvalability((int)$avalability);
-						$kindergarten->SetAddress($address);
-						$kindergarten->SetTags($tags);
-						$kindergarten->SetCapacity($capacity);
-						$kindergarten->SetNbChildrenRegistered((int)$nb_children_registered);
-						$kindergarten->SetPicture($picture);
-						$kindergarten->setCreatedDate($createdAt);
-						$kindergarten->setOwner($owner);
-						
+					$kindergarten->SetName($name);
+					$kindergarten->SetRatingNote((int)$ratingNote);
+					$kindergarten->SetDescription($description);
+					$kindergarten->SetAvalability((int)$avalability);
+					$kindergarten->SetAddress($address);
+					$kindergarten->SetTags($tags);
+					$kindergarten->SetCapacity($capacity);
+					$kindergarten->SetNbChildrenRegistered((int)$nb_children_registered);
+					$kindergarten->SetPicture($picture);
+					$kindergarten->setCreatedDate($createdAt);
+					$kindergarten->setOwner($owner);
+					
 
-						$em->persist($kindergarten);
-						$em->flush();
+					$em->persist($kindergarten);
+					$em->flush();
 
-						$data = array(
-								"status" 	=> "success",
-								"code" 		=> 200,
-								"msg" 		=> "Kindergarten suucessfuly updated "
-						);
-					}else{
-						$data = array(
-							"status" 	=> "error",
-							"code" 		=> 400,
-							"msg" 		=> "Kindergarten not updated, validation failed"
-						);
-					}
+					$data = array(
+							"status" 	=> "success",
+							"code" 		=> 200,
+							"msg" 		=> "Kindergarten suucessfuly edited "
+					);
 				}else{
 					$data = array(
-						"status" 	=> "error",
-						"code" 		=> 400,
-						"msg" 		=> "Kindergarten not found"
-					);
-				}
-				
-
-			}else{
-				$data = array(
-					"status" 	=> "error",
-					"code" 		=> 400,
-					"msg" 		=> "Kindergarten not updated, params failed"
+						"status" 	=> "success",
+						"code" 		=> 200,
+						"msg" 		=> "Kindergarten not edited validation error "
 				);
-			}
-
-			
+				}	
 		}else{
 			$data = array(
 				"status" 	=> "error",
@@ -325,5 +377,6 @@ class KindergartenController extends Controller{
 		return $helpers->json($data);
 	}
 
+	
 	
 }
