@@ -88,12 +88,13 @@ class KindergartenController extends Controller{
 		$authCheck = $jwt_auth->checkToken($token);
 		
 		if($authCheck){
+
 			$identity = $jwt_auth->checkToken($token, true);
 		
 
 
 				$createdAt = new \Datetime('now');
-
+				
 				$owner_id 	= ($identity->id !=null) ? $identity->id : null;
 				$name		= !empty($request->request->get('name')) ? $request->request->get('name') : null;
 				$ratingNote= !empty($request->request->get('ratingNote')) ? $request->request->get('ratingNote') : null;
@@ -128,28 +129,28 @@ class KindergartenController extends Controller{
 					} catch (FileException $e) {
 						// ... handle exception if something happens during file upload
 					}
-						$kindergarten->SetDoucmentEvidenceTva($newFilename);
+					$kindergarten->SetDoucmentEvidenceTva($newFilename);
 					}else{
 						$kindergarten->SetDoucmentEvidenceTva("...");
 					}
 
 					if ($picture) {
-						$originalFilename = pathinfo($picture->getClientOriginalName(), PATHINFO_FILENAME);
+						$originalFilename1 = pathinfo($picture->getClientOriginalName(), PATHINFO_FILENAME);
 							// this is needed to safely include the file name as part of the URL
-							$safeFilename = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename);
-							$newFilename = $safeFilename.'-'.uniqid().'.'.$picture->guessExtension();
+							$safeFilename1 = transliterator_transliterate('Any-Latin; Latin-ASCII; [^A-Za-z0-9_] remove; Lower()', $originalFilename1);
+							$newFilename1 = $safeFilename1.'-'.uniqid().'.'.$picture->guessExtension();
 	
 	
 						// Move the file to the directory where brochures are stored
 						try {
 							$picture->move(
 								$this->getParameter('upload_dir'),
-								$newFilename
+								$newFilename1
 							);
 						} catch (FileException $e) {
 							// ... handle exception if something happens during file upload
 						}
-							$kindergarten->SetPicture($newFilename);
+							$kindergarten->SetPicture($newFilename1);
 						}else{
 							$kindergarten->SetPicture("...");
 						}
@@ -159,10 +160,8 @@ class KindergartenController extends Controller{
 					$tags && $capacity  && $nb_children_registered){
 						
 						$em = $this->getDoctrine()->getManager();
-						$owner = $em->getRepository(Owner::class)->findOneBy(array(
-							'id' => $owner_id
-						));
-
+						$owner = $em->getRepository(Owner::class)->find($owner_id);
+					
 					$kindergarten->SetName($name);
 					$kindergarten->SetRatingNote((int)$ratingNote);
 					$kindergarten->SetDescription($description);
@@ -171,7 +170,6 @@ class KindergartenController extends Controller{
 					$kindergarten->SetTags($tags);
 					$kindergarten->SetCapacity($capacity);
 					$kindergarten->SetNbChildrenRegistered((int)$nb_children_registered);
-					$kindergarten->SetPicture($picture);
 					$kindergarten->setCreatedDate($createdAt);
 					$kindergarten->setOwner($owner);
 					
